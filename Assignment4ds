@@ -1,100 +1,98 @@
-import java.io.*;
-import java.net.*;
-import java.util.*;
+import java.io.InputStream;
+import java.io.PrintStream;
+import java.util.Scanner;
 
-public class BerkeleyAlgorithm {
+public class Bully {
+static boolean[] state = new boolean[5];
+int coordinator;
 
-// Define the port number that will be used for communication
-private static final int PORT = 9876;
-
-public static void main(String[] args) throws Exception {
-
-// Create a server socket to listen for incoming messages
-ServerSocket serverSocket = new ServerSocket(PORT);
-
-// Create a list to store the time differences for each node
-List<Long> timeDiffs = new ArrayList<Long>();
-
-// Create a new thread to handle the time requests from nodes
-Thread timeServerThread = new Thread(new Runnable() {
-public void run() {
-while (true) {
-try {
-// Wait for a node to connect and request the current time
-Socket clientSocket = serverSocket.accept();
-ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
-
-// Read the current time from the node's request
-Date clientTime = (Date) in.readObject();
-
-// Send the current time to the node as a response
-ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-out.writeObject(new Date());
-
-// Calculate the time difference between the server and the node
-long timeDiff = (new Date().getTime() - clientTime.getTime()) / 2;
-timeDiffs.add(timeDiff);
-
-// Close the input/output streams and the socket
-in.close();
-out.close();
-clientSocket.close();
-} catch (Exception e) {
-e.printStackTrace();
+public static void up(int up) {
+if (state[up - 1]) {
+System.out.println("process" + up + "is already up");
+} else {
+int i;
+Bully.state[up - 1] = true;
+System.out.println("process " + up + "held election");
+for (i = up; i < 5; ++i) {
+System.out.println("election message sent from process" + up + "to process" + (i + 1));
+}
+for (i = up + 1; i <= 5; ++i) {
+if (!state[i - 1]) continue;
+System.out.println("alive message send from process" + i + "to process" + up);
+break;
 }
 }
 }
-});
-timeServerThread.start();
 
-// Create a new thread to periodically send time requests to the server
-Thread timeClientThread = new Thread(new Runnable() {
-public void run() {
-while (true) {
-try {
-// Connect to the server and send a time request
-Socket socket = new Socket("localhost", PORT);
-ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-out.writeObject(new Date());
-
-// Read the current time from the server's response
-ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-Date serverTime = (Date) in.readObject();
-
-// Calculate the time difference between the node and the server
-long timeDiff = (serverTime.getTime() - new Date().getTime()) / 2;
-timeDiffs.add(timeDiff);
-
-// Close the input/output streams and the socket
-in.close();
-out.close();
-socket.close();
-
-// Wait for a short period of time before sending the next time request
-Thread.sleep(1000);
-} catch (Exception e) {
-e.printStackTrace();
+public static void down(int down) {
+if (!state[down - 1]) {
+System.out.println("process " + down + "is already dowm.");
+} else {
+Bully.state[down - 1] = false;
 }
 }
+
+public static void mess(int mess) {
+if (state[mess - 1]) {
+if (state[4]) {
+System.out.println("0K");
+} else if (!state[4]) {
+int i;
+System.out.println("process" + mess + "election");
+for (i = mess; i < 5; ++i) {
+System.out.println("election send from process" + mess + "to process " + (i + 1));
 }
-});
-timeClientThread.start();
-
-// Wait for a sufficient number of time differences to be recorded
-Thread.sleep(10000);
-
-// Compute the average time difference and adjust the node's clock
-long sumTimeDiff = 0;
-for (Long timeDiff : timeDiffs) {
-sumTimeDiff += timeDiff;
+for (i = 5; i >= mess; --i) {
+if (!state[i - 1]) continue;
+System.out.println("Coordinator message send from process" + i + "to all");
+break;
 }
-long avgTimeDiff = sumTimeDiff / timeDiffs.size();
-System.out.println("Average time difference: " + avgTimeDiff);
+}
+} else {
+System.out.println("Prccess" + mess + "is down");
+}
+}
 
-// Adjust the node's clock by adding the average time difference
-Calendar calendar = Calendar.getInstance();
-calendar.setTime(new Date());
-calendar.add(Calendar.MILLISECOND, (int) avgTimeDiff);
-System.out.println("Adjusted time: " + calendar.getTime());
+public static void main(String[] args) {
+int choice;
+Scanner sc = new Scanner(System.in);
+for (int i = 0; i < 5; ++i) {
+Bully.state[i] = true;
+}
+System.out.println("5 active process are:");
+System.out.println("Process up = p1 p2 p3 p4 p5");
+System.out.println("Process 5 is coordinator");
+do {
+System.out.println(".........");
+System.out.println("1 up a process.");
+System.out.println("2.down a process");
+System.out.println("3 send a message");
+System.out.println("4.Exit");
+choice = sc.nextInt();
+switch (choice) {
+case 1: {
+System.out.println("bring proces up");
+int up = sc.nextInt();
+if (up == 5) {
+System.out.println("process 5 is co-ordinator");
+Bully.state[4] = true;
+break;
+}
+Bully.up(up);
+break;
+}
+case 2: {
+System.out.println("bring down any process.");
+int down = sc.nextInt();
+Bully.down(down);
+break;
+}
+case 3: {
+System.out.println("which process will send message");
+int mess = sc.nextInt();
+Bully.mess(mess);
+}
+}
+} while (choice != 4);
 }
 }
